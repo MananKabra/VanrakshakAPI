@@ -267,10 +267,58 @@ def satelliteImageScript():
 
 ##########################################################################################################################################################################
 
+
 @app.route('/treeEnumeration',methods=['GET'])
 def treeEnumerationScript():
     imageLink = str(request.args['imageLink'])
     imageID = str(request.args['ProjectID'])
+
+    path_1 = "D:\\SIHMODELS\\TreeEnumeration"
+    sys.path.append(path_1)
+    req = urllib.request.urlopen(imageLink)
+    arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+    img1 = cv2.imdecode(arr, -1)
+
+    if img1.shape[2] == 4:
+        img1 = cv2.cvtColor(img1, cv2.COLOR_RGBA2RGB)
+
+    # path_to_model = "D:/SIHMODELS/FinalModel.pth"
+    path_to_model = os.getcwd().replace('\\','/') +"/assets/model1.pth"
+    loaded_model = main.deepforest()
+    loaded_model.model.load_state_dict(torch.load(path_to_model))
+    loaded_model.eval()
+    
+    box_info2 = loaded_model.predict_image(img1, return_plot=False)
+    num_trees2 = len(box_info2)
+    print("Number of trees:", num_trees2)
+    
+    output = {}
+    output['treeCount'] = num_trees2
+
+    img1 = loaded_model.predict_image(img1, return_plot=True)
+    
+    path_for_images = os.getcwd() + "\\assets\\" + imageID + "_TreeEnumeratedImage.png"
+
+    cv2.imwrite(path_for_images, cv2.cvtColor(img1, cv2.COLOR_RGB2BGR))
+
+    fileName = os.getcwd() + "\\assets\\" + imageID + "_TreeEnumeratedImage.png"
+    bucket = storage.bucket()
+    blob = bucket.blob(f"EnumerationImages/{imageID}_TreeEnumeratedImage.png")
+    blob.upload_from_filename(fileName)
+
+    blob.make_public()
+
+    print("your file url", blob.public_url)
+
+    output['enumeratedImageLink'] =  blob.public_url
+
+    os.remove(os.getcwd() + "\\assets\\" + imageID + "_TreeEnumeratedImage.png")
+
+    return jsonify(output)
+
+
+
+##########################################################################################################################################################################
 
 
 
